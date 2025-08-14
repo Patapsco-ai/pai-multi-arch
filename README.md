@@ -1,3 +1,31 @@
+# QUICKSTART
+
+**NOTE:** "Multi-Arch" means you can run the same image & commands from either ARM64 or x86_64 systems and should get the same result.
+
+1. Grab the latest image form Dockerhub:
+
+```bash
+docker pull patapscoai/pai-multi-arch:latest
+```
+
+2. Start up container in Docker/Podman/Containerd
+
+```bash
+docker run --privileged --gpus all -it --rm --network=host --ipc=host -v /models:/models --entrypoint /bin/bash patapscoai/pai-multi-arch:latest
+```
+
+3. Start an Axolotl training job:
+
+```bash
+axolotl train /workspace/axolotl/examples/gpt-oss/gpt-oss-20b-fft-fsdp2.yaml
+```
+
+4. Start a VLLM inference job:
+
+```bash
+vllm serve NousResearch/Hermes-3-Llama-3.1-70B -tp 8
+```
+
 # Multi-Architecture VLLM + Axolotl Docker Image
 
 This Docker image combines VLLM (for high-performance LLM inference) and Axolotl (for LLM fine-tuning) in a single multi-architecture image that supports both x86_64 and ARM64 platforms, including NVIDIA GH200 chips.
@@ -57,11 +85,11 @@ This image includes the following specific versions optimized for multi-architec
 ### Standard Build
 ```bash
 # Build for current architecture
-docker build -t vllm-axolotl:latest -f Dockerfile .
+docker build -t patapscoai/pai-multi-arch:latest -f Dockerfile .
 
 # Build for specific architecture
-docker buildx build --platform linux/amd64 -t vllm-axolotl:amd64 -f Dockerfile .
-docker buildx build --platform linux/arm64 -t vllm-axolotl:arm64 -f Dockerfile .
+docker buildx build --platform linux/amd64 -t patapscoai/pai-multi-arch:latest -f Dockerfile .
+docker buildx build --platform linux/arm64 -t patapscoai/pai-multi-arch:latest -f Dockerfile .
 ```
 
 ### Building on GH200 (High RAM Systems)
@@ -73,13 +101,13 @@ docker build \
   --memory 0 \
   --memory-swap 0 \
   --shm-size 16G \
-  -t vllm-axolotl:latest -f Dockerfile .
+  -t patapscoai/pai-multi-arch:latest -f Dockerfile .
 
 # Option 2: Using buildx
 docker buildx build \
   --builder default \
   --memory 0 --memory-swap 0 --shm-size 16G \
-  -t vllm-axolotl:latest -f Dockerfile .
+  -t patapscoai/pai-multi-arch:latest -f Dockerfile .
 ```
 
 ### Build Arguments
@@ -108,13 +136,13 @@ docker build \
 # Run training with a configuration file (examples are included in the image)
 docker run --gpus all -it \
   -v $(pwd)/axolotl-examples:/workspace/axolotl-examples \
-  vllm-axolotl:latest \
+  patapscoai/pai-multi-arch:latest \
   axolotl train /workspace/axolotl/examples/llama-3/lora.yml
 
 # Run with your own config
 docker run --gpus all -it \
   -v $(pwd)/configs:/configs \
-  vllm-axolotl:latest \
+  patapscoai/pai-multi-arch:latest \
   axolotl train /configs/my_training_config.yml
 ```
 
@@ -122,17 +150,17 @@ docker run --gpus all -it \
 
 ```bash
 # Start VLLM server (default behavior if no command specified)
-docker run --gpus all -p 8000:8000 vllm-axolotl:latest
+docker run --gpus all -p 8000:8000 patapscoai/pai-multi-arch:latest
 
 # Start VLLM with specific model
 docker run --gpus all -p 8000:8000 \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
-  vllm-axolotl:latest \
+  patapscoai/pai-multi-arch:latest \
   vllm serve meta-llama/Llama-2-7b-hf --host 0.0.0.0
 
 # With custom parameters
 docker run --gpus all -p 8000:8000 \
-  vllm-axolotl:latest \
+  patapscoai/pai-multi-arch:latest \
   vllm serve mistralai/Mistral-7B-v0.1 \
     --host 0.0.0.0 \
     --max-model-len 8192 \
@@ -143,39 +171,23 @@ docker run --gpus all -p 8000:8000 \
 
 ```bash
 # Start bash shell in workspace
-docker run --gpus all -it vllm-axolotl:latest bash
+docker run --gpus all -it patapscoai/pai-multi-arch:latest bash
 
 # Start in Axolotl directory
-docker run --gpus all -it -w /workspace/axolotl vllm-axolotl:latest bash
+docker run --gpus all -it -w /workspace/axolotl patapscoai/pai-multi-arch:latest bash
 
 # With volume mounts for development
 docker run --gpus all -it \
   -v $(pwd):/workspace/dev \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
-  vllm-axolotl:latest bash
+  patapscoai/pai-multi-arch:latest bash
 ```
 
-### Using Accelerate for Distributed Training
-
-```bash
-# Single GPU
-docker run --gpus all -it \
-  -v $(pwd)/configs:/configs \
-  vllm-axolotl:latest \
-  accelerate launch -m axolotl.cli.train /configs/config.yml
-
-# Multi-GPU with DeepSpeed
-docker run --gpus all -it \
-  -v $(pwd)/configs:/configs \
-  vllm-axolotl:latest \
-  accelerate launch --multi_gpu --num_processes 8 \
-    -m axolotl.cli.train /configs/config.yml
-```
 
 ## Environment Variables
 
 - `HF_HUB_ENABLE_HF_TRANSFER=1`: Enables fast HuggingFace downloads
-- `TORCH_CUDA_ARCH_LIST`: GPU architectures (default: "7.5 8.0 8.9 9.0 10.0+PTX")
+- `TORCH_CUDA_ARCH_LIST`: GPU architectures (default: "7.5 8.0 8.9 9.0 9.0a+PTX")
 - `CUDA_HOME=/usr/local/cuda`: CUDA installation path
 - `VIRTUAL_ENV=/workspace/.venv`: Python virtual environment path
 
@@ -183,7 +195,7 @@ docker run --gpus all -it \
 ```bash
 docker run --gpus all -it \
   -e FLASH_ATTENTION_FORCE_DISABLE=1 \
-  vllm-axolotl:latest \
+  patapscoai/pai-multi-arch:latest \
   axolotl train config.yml
 ```
 
@@ -234,12 +246,6 @@ docker run --gpus all -it \
 - Bitsandbytes 0.46.1 is built from source specifically for ARM64
 - Uses CUDA backend with proper compute capability configuration
 - Provides optimized quantization support for ARM64 systems
-
-### GH200 Specific Notes
-- The image is optimized for NVIDIA GH200 (Grace Hopper Superchip)
-- Supports the full 96GB GPU memory
-- Can utilize the 480GB system RAM when Docker memory limits are removed
-- Recommended to use `--memory 0` flag when building on GH200
 
 ### Known Limitations
 - Build process requires significant memory and time due to compilation from source
