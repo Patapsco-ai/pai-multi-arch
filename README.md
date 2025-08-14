@@ -11,7 +11,15 @@ docker pull patapscoai/pai-multi-arch:latest
 2. Start up container in Docker/Podman/Containerd
 
 ```bash
-docker run --privileged --gpus all -it --rm --network=host --ipc=host -v /models:/models --entrypoint /bin/bash patapscoai/pai-multi-arch:latest
+docker run \
+  --privileged \
+  --gpus all \
+  -it --rm \
+  --network=host \
+  --ipc=host \
+  -v /models:/models \
+  --entrypoint /bin/bash \
+  patapscoai/pai-multi-arch:latest
 ```
 
 3. Start an Axolotl training job:
