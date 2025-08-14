@@ -23,17 +23,16 @@ ARG CUDA_CAPABILITIES="75;80;86;87;89;90"
 
 # Main App Versions
 ARG VLLM_REF=v0.10.0
-ARG AXOLOTL_REF=v0.11.0.post1
-ARG AXOLOTL_PATCHES="eb662557a7304485534779876f49793df0ec6a6a \
-                     5081db7f8a042bb520a9124fe621af64314d37fd \
-                     7ccbbd8e770acd5ecbe7edf08200d30eb841dd8b"
+ARG VLLM_PATCHES=""
+ARG AXOLOTL_REF=v0.12.1
+ARG AXOLOTL_PATCHES=""
 
 # Library Versions
 ARG PYTORCH_REF=2.7.1
 ARG TORCHVISION_REF=0.22.1
 ARG PYTORCH_TRITON_REF=3.3.0
 ARG BITSANDBYTES_REF=0.46.1
-ARG XFORMERS_REF=v0.0.31.post1
+ARG XFORMERS_REF=v0.0.31
 ARG FLASH_ATTN_REF=v2.8.0.post2
 # Using RC1 version due to: https://github.com/flashinfer-ai/flashinfer/issues/1256
 ARG FLASHINFER_REF=v0.2.8rc1
@@ -275,6 +274,7 @@ COPY --from=build-libs-aarch64 /wheels/ /wheels/
 RUN find /wheels/ -name "*.whl" -exec uv pip install {} + || echo "No wheels to install"
 
 ARG VLLM_REF
+ARG VLLM_PATCHES
 ARG VLLM_BUILD_VERSION
 ENV BUILD_VERSION=${VLLM_BUILD_VERSION:-${VLLM_REF#v}}
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${BUILD_VERSION:-:}
@@ -282,6 +282,19 @@ RUN git clone https://github.com/vllm-project/vllm.git
 
 RUN cd vllm && \
     git checkout ${VLLM_REF} && \
+    # Apply patches if provided (kept for future use)
+    if [ -n "${VLLM_PATCHES}" ] && [ "${VLLM_PATCHES}" != "" ]; then \
+        echo "Applying patches: ${VLLM_PATCHES}"; \
+        for patch in ${VLLM_PATCHES}; do \
+            echo "Applying patch: $patch"; \
+            curl -L "https://github.com/vllm-project/vllm/commit/$patch.patch" | git apply || { \
+                echo "Failed to apply patch $patch"; \
+                exit 1; \
+            }; \
+        done; \
+    else \
+        echo "No patches to apply"; \
+    fi && \
     python use_existing_torch.py && \
     uv pip install -r requirements/build.txt && \
     ARCH=$(uname -m) && \
@@ -307,7 +320,6 @@ RUN find /wheels/ -name "*.whl" -exec uv pip install {} + || echo "No wheels to 
 ARG AXOLOTL_REF
 ARG AXOLOTL_PATCHES
 ARG AXOLOTL_BUILD_VERSION=${AXOLOTL_REF}+cu128
-ARG AXOLOTL_BUILD_VERSION=0.11.0.post2+cu128
 ENV BUILD_VERSION=${AXOLOTL_BUILD_VERSION:-${AXOLOTL_REF#v}}
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=${BUILD_VERSION:-:}
 RUN git clone https://github.com/axolotl-ai-cloud/axolotl.git
@@ -315,8 +327,8 @@ RUN git clone https://github.com/axolotl-ai-cloud/axolotl.git
 
 RUN cd axolotl && \
     git checkout ${AXOLOTL_REF} && \
-    # Apply patches if provided
-    if [ -n "${AXOLOTL_PATCHES}" ]; then \
+    # Apply patches if provided (kept for future use)
+    if [ -n "${AXOLOTL_PATCHES}" ] && [ "${AXOLOTL_PATCHES}" != "" ]; then \
         echo "Applying patches: ${AXOLOTL_PATCHES}"; \
         for patch in ${AXOLOTL_PATCHES}; do \
             echo "Applying patch: $patch"; \
@@ -325,16 +337,18 @@ RUN cd axolotl && \
                 exit 1; \
             }; \
         done; \
+    else \
+        echo "No patches to apply"; \
     fi && \
     # Modify requirements to be more flexible with bitsandbytes version
     if grep -q "bitsandbytes==" requirements.txt 2>/dev/null; then \
-        sed -i 's/bitsandbytes==[0-9.]*/bitsandbytes>=0.45.0/g' requirements.txt || true; \
+        sed -i 's/bitsandbytes==[0-9.]*/bitsandbytes>=0.46.1/g' requirements.txt || true; \
     fi && \
     if grep -q "mamba-ssm==" requirements.txt 2>/dev/null; then \
             sed -i 's/mamba-ssm==[0-9.]*/mamba-ssm>=1.2.0/g' requirements.txt || true; \
     fi && \
     if grep -q "mistral-common==" requirements.txt 2>/dev/null; then \
-            sed -i 's/mistral-common==[0-9.]*/mistral-common>=1.8.2/g' requirements.txt || true; \
+            sed -i 's/mistral-common==[0-9.]*/mistral-common>=1.8.3/g' requirements.txt || true; \
     fi && \
     uv pip install -r requirements.txt && \
     ARCH=$(uname -m) && \
