@@ -6,13 +6,12 @@ This Docker image combines VLLM (for high-performance LLM inference) and Axolotl
 
 - **Multi-Architecture Support**: Works on both x86_64 (AMD64) and ARM64 (aarch64) platforms
 - **VLLM v0.10.0**: High-performance inference engine with optimized kernels
-- **Axolotl v0.11.0.post1**: Complete LLM fine-tuning framework with DeepSpeed, Flash Attention 2, and more
+- **Axolotl v0.12.1**: Complete LLM fine-tuning framework with DeepSpeed, Flash Attention 2, and more
 - **CUDA 12.8.1**: Latest CUDA support for optimal GPU performance
-- **Python 3.12**: Modern Python environment
+- **Python 3.13**: Modern Python environment
 - **Flash Attention 2 v2.8.0.post2**: Built from source for both architectures
-- **Xformers v0.0.31.post1**: Built from source for both architectures
+- **Xformers v0.0.31**: Built from source for both architectures
 - **Bitsandbytes 0.46.1**: Built from source for ARM64, optimized quantization support
-- **Optimized for GH200**: Special optimizations for NVIDIA Grace Hopper Superchip
 
 ## Architecture-Specific Optimizations
 
@@ -42,12 +41,12 @@ This image includes the following specific versions optimized for multi-architec
 | Component | Version | Build Method | Architecture Support |
 |-----------|---------|--------------|----------------------|
 | VLLM | v0.10.0 | Source | x86_64, ARM64 |
-| Axolotl | v0.11.0.post1 | Source | x86_64, ARM64 |
+| Axolotl | v0.12.1 | Source | x86_64, ARM64 |
 | PyTorch | 2.7.1+cu128 | Wheel | x86_64, ARM64 |
 | PyTorch Triton | 3.3.0 | Wheel | x86_64, ARM64 |
 | TorchVision | 0.22.1 | Wheel | x86_64, ARM64 |
 | Flash Attention 2 | v2.8.0.post2 | Source | x86_64, ARM64 |
-| Xformers | v0.0.31.post1 | Source | x86_64, ARM64 |
+| Xformers | v0.0.31 | Source | x86_64, ARM64 |
 | Bitsandbytes | 0.46.1 | Source (ARM64), Wheel (x86_64) | x86_64, ARM64 |
 | Flashinfer | v0.2.9 | Source | x86_64, ARM64 |
 | Mamba SSM | main | Source | x86_64, ARM64 |
@@ -89,13 +88,13 @@ You can customize the build process with these arguments:
 ```bash
 docker build \
   --build-arg CUDA_VERSION=12.8.1 \
-  --build-arg PYTHON_VERSION=3.12 \
+  --build-arg PYTHON_VERSION=3.13 \
   --build-arg AMD64_MAX_JOBS=28 \
   --build-arg ARM64_MAX_JOBS=60 \
   --build-arg VLLM_REF=v0.10.0 \
-  --build-arg AXOLOTL_REF=v0.11.0.post1 \
+  --build-arg AXOLOTL_REF=v0.12.1 \
   --build-arg BITSANDBYTES_REF=0.46.1 \
-  --build-arg XFORMERS_REF=v0.0.31.post1 \
+  --build-arg XFORMERS_REF=v0.0.31 \
   --build-arg FLASH_ATTN_REF=v2.8.0.post2 \
   --build-arg FLASHINFER_REF=v0.2.9 \
   -t vllm-axolotl:custom -f Dockerfile .
@@ -195,9 +194,9 @@ docker run --gpus all -it \
 - **PyTorch Triton 3.3.0**: Accelerated GPU kernel library
 - **TorchVision 0.22.1**: Computer vision utilities
 - **VLLM v0.10.0**: High-performance LLM inference
-- **Axolotl v0.11.0.post1**: Complete fine-tuning framework
+- **Axolotl v0.12.1**: Complete fine-tuning framework
 - **Flash Attention 2 v2.8.0.post2**: Memory-efficient attention mechanism
-- **Xformers v0.0.31.post1**: Efficient transformer implementations
+- **Xformers v0.0.31**: Efficient transformer implementations
 - **Flashinfer v0.2.9**: High-performance attention kernels
 
 ### Training Components
@@ -216,6 +215,37 @@ docker run --gpus all -it \
 - S3FS for mounting S3 buckets
 - HuggingFace Accelerate
 - Weights & Biases support
+
+## Important Notes
+
+### Flash Attention 2 on ARM64
+- Flash Attention 2 is built from source on ARM64 platforms
+- Build time: ~8-10 minutes on GH200
+- Memory usage during build: ~2GB per compilation job
+- MAX_JOBS reduced by half (ARM64_MAX_JOBS/2) to prevent OOM during compilation
+- Also built from source on x86_64 for consistency and optimization
+
+### Xformers Build Process
+- Xformers is now built from source for both ARM64 and x86_64 architectures
+- Ensures optimal performance and compatibility across platforms
+- Build includes recursive submodule initialization for complete functionality
+
+### Bitsandbytes on ARM64
+- Bitsandbytes 0.46.1 is built from source specifically for ARM64
+- Uses CUDA backend with proper compute capability configuration
+- Provides optimized quantization support for ARM64 systems
+
+### GH200 Specific Notes
+- The image is optimized for NVIDIA GH200 (Grace Hopper Superchip)
+- Supports the full 96GB GPU memory
+- Can utilize the 480GB system RAM when Docker memory limits are removed
+- Recommended to use `--memory 0` flag when building on GH200
+
+### Known Limitations
+- Build process requires significant memory and time due to compilation from source
+- Some advanced Axolotl features may have varying performance across architectures
+- Flash Attention 2 requires GPUs with compute capability >= 7.5
+- Flashinfer availability depends on upstream release compatibility
 
 ## Troubleshooting
 
